@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Control de limpieza Airbnb</title>
+<style>
+:root{--navy:#17243a;--blue:#315b88;--bg:#f3f5f8;--line:#e2e7ee;--muted:#687386;--green:#16834a;--red:#c43d42}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);font-family:Arial,Helvetica,sans-serif;color:#202938}
+header{background:var(--navy);color:white;padding:24px max(18px,calc((100% - 1180px)/2))}
+header h1{margin:0 0 6px;font-size:25px}header p{margin:0;color:#cbd5e1;font-size:14px}
+main{max-width:1180px;margin:22px auto;padding:0 16px}
+.cards{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:18px}
+.card,.panel{background:white;border:1px solid var(--line);border-radius:13px;padding:16px}
+.metric small{display:block;color:var(--muted);margin-bottom:7px}.metric strong{font-size:24px}
+nav{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px}
+button,.btn{border:0;border-radius:8px;padding:10px 13px;background:var(--blue);color:white;font-weight:600;cursor:pointer}
+button.secondary{background:#e9eef5;color:#243449}button.danger{background:#fff0f0;color:var(--red)}button:disabled{opacity:.5;cursor:not-allowed}
+nav button.active{background:var(--navy);color:white}
+.toolbar{display:flex;gap:12px;align-items:end;flex-wrap:wrap;margin-bottom:14px}
+label{display:block;font-size:13px;font-weight:700;color:#465266;margin-bottom:5px}
+input,select,textarea{font:inherit;padding:10px;border:1px solid #cfd7e2;border-radius:8px;background:white;max-width:100%}.time-pick{display:flex;align-items:center;gap:5px}.time-pick select{min-width:0;flex:1}
+input[type=date]{min-width:160px}
+.table-wrap{overflow-x:auto;border:1px solid var(--line);border-radius:12px;background:white}
+table{width:100%;border-collapse:collapse;min-width:850px}
+th,td{padding:10px 8px;border-bottom:1px solid var(--line);text-align:center;font-size:13px}
+th{background:#f7f9fb;color:#526075}
+th:first-child,td:first-child{text-align:left;min-width:165px}
+.person-name{font-weight:700}.sub{font-size:11px;color:var(--muted);margin-top:4px}
+.daycell{width:100%;min-width:74px;min-height:48px;border:1px solid var(--line);background:#fafbfd;color:#364152;padding:6px 3px;font-size:12px;line-height:1.35}
+.daycell.yes{background:#e8f6ee;border-color:#b8e3c8;color:#12683a}.daycell.no{background:#fff0f0;border-color:#f1c5c5;color:#a92d34}.daycell.rest{background:#edf0f4;color:#586273}
+.total{font-weight:700;white-space:nowrap}
+.section{display:none}.section.active{display:block}
+.formgrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.field{display:flex;flex-direction:column}
+.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+.editor{margin-top:16px;border:1px solid #b8c8da;background:#f8fafc;border-radius:12px;padding:16px}
+.editor h3{margin:0 0 12px}.help{font-size:12px;color:var(--muted);line-height:1.5}
+.list{display:grid;gap:8px;margin-top:12px}.listitem{display:flex;justify-content:space-between;align-items:center;gap:12px;border:1px solid var(--line);border-radius:10px;padding:12px;background:white}
+.report-row{display:flex;justify-content:space-between;gap:12px;padding:12px 0;border-bottom:1px solid var(--line)}
+footer{max-width:1180px;margin:20px auto;padding:0 16px 24px;color:var(--muted);font-size:12px}
+@media(max-width:650px){.cards{grid-template-columns:1fr 1fr}.formgrid{grid-template-columns:1fr}header h1{font-size:21px}}
+@media print{body{background:white}header{padding:12px;color:#000;background:white;border-bottom:2px solid #222}header p{color:#333}nav,.toolbar,.no-print,.actions{display:none!important}main{margin:0;max-width:none}.section{display:none!important}#report{display:block!important}.panel,.card{border:0}.cards{display:none}table{min-width:0}th,td{font-size:10px;padding:5px}}
+</style>
+</head>
+<body>
+<header><h1>Control de limpieza Airbnb</h1><p>Planilla semanal · Asistencia · Propiedades · Horas y pagos</p></header>
+<main>
+<div class="cards">
+ <div class="card metric"><small>Personas registradas</small><strong id="mPeople">0</strong></div>
+ <div class="card metric"><small>Horas de la semana</small><strong id="mHours">0.00</strong></div>
+ <div class="card metric"><small>Total por pagar</small><strong id="mPay">₡0</strong></div>
+</div>
+<nav class="no-print">
+ <button class="active" data-tab="plan">Planilla semanal</button>
+ <button class="secondary" data-tab="people">Personal</button>
+ <button class="secondary" data-tab="houses">Propiedades</button>
+ <button class="secondary" data-tab="report">Reporte y pagos</button>
+</nav>
+
+<section id="plan" class="section active panel">
+ <div class="toolbar">
+  <div><label for="week">Semana (selecciona el lunes)</label><input type="date" id="week"></div>
+  <div class="help">Selecciona una celda para marcar asistencia, propiedad y horas. Puedes asignar la misma casa a varias personas.</div>
+ </div>
+ <div class="help" style="margin-bottom:10px">Verde: asistió · Rojo: no asistió · Gris: descanso · Guion: sin registrar.</div>
+ <div class="table-wrap"><table id="schedule"></table></div>
+ <div id="editor" class="editor no-print" hidden>
+  <h3 id="editorTitle">Registro diario</h3>
+  <div class="formgrid">
+   <div class="field"><label>Asistencia</label><select id="status"><option value="">Sin registrar</option><option value="yes">Asistió</option><option value="no">No asistió</option><option value="rest">Descanso</option></select></div>
+   <div class="field"><label>Propiedad Airbnb</label><select id="jobHouse"></select></div>
+   <div class="field"><label>Hora de entrada</label><div class="time-pick"><select id="startHour"></select><span>:</span><select id="startMinute"></select><select id="startPeriod"><option>AM</option><option>PM</option></select></div></div>
+   <div class="field"><label>Hora de salida</label><div class="time-pick"><select id="endHour"></select><span>:</span><select id="endMinute"></select><select id="endPeriod"><option>AM</option><option selected>PM</option></select></div></div>
+  </div>
+  <p id="estimate" class="help"></p>
+  <div class="actions"><button id="saveRecord">Guardar registro</button><button id="deleteRecord" class="danger">Eliminar registro</button><button class="secondary" id="closeEditor">Cerrar</button></div>
+ </div>
+</section>
+
+<section id="people" class="section panel">
+ <h2>Personal</h2><p class="help">Registra el nombre y expediente de cada persona.</p>
+ <div class="formgrid">
+  <div class="field"><label>Nombre completo</label><input id="personName" placeholder="Nombre y apellidos"></div>
+  <div class="field"><label>Número de expediente</label><input id="personFile" placeholder="Ej. 001"></div>
+ </div><div class="actions"><button id="addPerson">Agregar persona</button></div>
+ <div id="peopleList" class="list"></div>
+</section>
+
+<section id="houses" class="section panel">
+ <h2>Propiedades Airbnb</h2><p class="help">Agrega las casas o apartamentos que se limpian.</p>
+ <div class="field"><label>Nombre de la propiedad</label><input id="houseName" placeholder="Ej. Villa Tropical"></div>
+ <div class="actions"><button id="addHouse">Agregar propiedad</button></div>
+ <div id="housesList" class="list"></div>
+</section>
+
+<section id="report" class="section panel">
+ <h2>Reporte semanal de horas y pagos</h2>
+ <div class="toolbar no-print">
+  <div><label for="rate">Tarifa por hora (₡)</label><input id="rate" type="number" min="0" step="1" value="1500"></div>
+  <div><label for="reportWeek">Semana (lunes)</label><input type="date" id="reportWeek"></div>
+  <button id="csv">Descargar Excel (CSV)</button><button id="print" class="secondary">Imprimir / Guardar PDF</button>
+ </div>
+ <div id="reportContent"></div>
+ <p class="help no-print">Para crear un PDF, pulsa “Imprimir / Guardar PDF” y elige “Guardar como PDF” en la ventana de impresión.</p>
+</section>
+</main>
+<footer>Los datos se guardan en este navegador y en esta computadora. Haz copias de seguridad con el botón de exportación CSV.</footer>
+
+<script>
+const STORAGE_KEY='airbnb_cleaning_manager_v1';
+const days=['Lunes','Martes','Miércoles','Jueves','Viernes','Sábado','Domingo'];
+let data=loadData(), selected=null;
+function loadData(){try{return JSON.parse(localStorage.getItem(STORAGE_KEY))||{people:[],houses:[],records:{},rate:1500}}catch(e){return {people:[],houses:[],records:{},rate:1500}}}
+function saveData(){localStorage.setItem(STORAGE_KEY,JSON.stringify(data));render()}
+function money(n){return new Intl.NumberFormat('es-CR',{style:'currency',currency:'CRC',maximumFractionDigits:0}).format(n)}
+function mondayOf(value){let d=new Date(value+'T12:00:00');let day=(d.getDay()+6)%7;d.setDate(d.getDate()-day);return iso(d)}
+function iso(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')}
+function addDays(value,n){let d=new Date(value+'T12:00:00');d.setDate(d.getDate()+n);return d}
+function recordKey(person,date){return person+'|'+date}
+function getRecord(person,date){return data.records[recordKey(person,date)]||{status:'',house:'',start:'08:00',end:'12:00'}}
+function houseName(id){return data.houses.find(h=>h.id===id)?.name||'Propiedad sin nombre'}
+function hours(r){if(r.status!=='yes'||!r.start||!r.end)return 0;let [h,m]=r.start.split(':').map(Number),[eh,em]=r.end.split(':').map(Number);let mins=eh*60+em-h*60-m;return mins>0?mins/60:0}
+function to24(h,m,p){h=Number(h);return String((h%12)+(p==='PM'?12:0)).padStart(2,'0')+':'+m}
+function from24(value){let [h,m]=(value||'07:00').split(':').map(Number);return {hour:String(h%12||12),minute:String(m),period:h>=12?'PM':'AM'}}
+function setupTime(prefix,value){let t=from24(value);document.getElementById(prefix+'Hour').value=t.hour;document.getElementById(prefix+'Minute').value=t.minute;document.getElementById(prefix+'Period').value=t.period}
+function readTime(prefix){return to24(document.getElementById(prefix+'Hour').value,document.getElementById(prefix+'Minute').value,document.getElementById(prefix+'Period').value)}
+function initTimeSelects(){['start','end'].forEach(prefix=>{document.getElementById(prefix+'Hour').innerHTML=Array.from({length:12},(_,i)=>`<option>${i+1}</option>`).join('');document.getElementById(prefix+'Minute').innerHTML=['00','15','30','45'].map(m=>`<option>${m}</option>`).join('');setupTime(prefix,prefix==='start'?'07:00':'17:00')})}
+function currentWeek(){return mondayOf(document.getElementById('week').value)}
+function weekDates(w){return Array.from({length:7},(_,i)=>iso(addDays(w,i)))}
+function weekRecords(w){let dates=weekDates(w);return data.people.map(p=>({person:p,records:dates.map(d=>getRecord(p.id,d)),hours:dates.reduce((s,d)=>s+hours(getRecord(p.id,d)),0)}))}
+function render(){
+ const w=currentWeek(), dates=weekDates(w), rate=Number(document.getElementById('rate').value||data.rate||1500);
+ document.getElementById('mPeople').textContent=data.people.length;
+ const total=data.people.reduce((s,p)=>s+dates.reduce((a,d)=>a+hours(getRecord(p.id,d)),0),0);
+ document.getElementById('mHours').textContent=total.toFixed(2);
+ document.getElementById('mPay').textContent=money(total*rate);
+ renderSchedule(w,dates);renderPeople();renderHouses();renderReport(w,rate);
+}
+function renderSchedule(w,dates){
+ let table='<thead><tr><th>Persona / expediente</th>'+days.map((d,i)=>`<th>${d.slice(0,2)}<br><span class="sub">${dates[i].slice(8,10)}/${dates[i].slice(5,7)}</span></th>`).join('')+'<th>Total horas</th></tr></thead><tbody>';
+ data.people.forEach(p=>{
+  let total=0;table+='<tr><td><div class="person-name">'+esc(p.name)+'</div><div class="sub">Exp. '+esc(p.file)+'</div></td>';
+  dates.forEach((date,i)=>{let r=getRecord(p.id,date),h=hours(r);total+=h;let invalidTime=r.status==='yes'&&r.start&&r.end&&r.end<=r.start;let label=r.status==='yes'?(invalidTime?'Revisar hora':h.toFixed(1)+' h'):r.status==='no'?'No asistió':r.status==='rest'?'Descanso':'＋';let cls=invalidTime?'no':r.status==='yes'?'yes':r.status==='no'?'no':r.status==='rest'?'rest':'';let extra=r.status==='yes'&&r.house?'<br>'+esc(houseName(r.house)):'';table+=`<td><button class="daycell ${cls}" data-person="${p.id}" data-date="${date}">${label}${extra}</button></td>`});
+  table+=`<td class="total">${total.toFixed(2)} h</td></tr>`;
+ });
+ if(!data.people.length)table+='<tr><td colspan="9">Primero agrega personas en la sección Personal.</td></tr>';
+ document.getElementById('schedule').innerHTML=table+'</tbody>';
+ document.querySelectorAll('.daycell').forEach(b=>b.addEventListener('click',()=>openEditor(b.dataset.person,b.dataset.date)));
+}
+function renderPeople(){let el=document.getElementById('peopleList');el.innerHTML=data.people.map(p=>`<div class="listitem"><div><b>${esc(p.name)}</b><div class="sub">Expediente: ${esc(p.file)}</div></div><button class="danger" data-remove-person="${p.id}">Eliminar</button></div>`).join('')||'<p class="help">Todavía no hay personas registradas.</p>';el.querySelectorAll('[data-remove-person]').forEach(b=>b.onclick=()=>{if(confirm('¿Eliminar esta persona? Sus registros también se eliminarán.')){data.people=data.people.filter(p=>p.id!==b.dataset.removePerson);Object.keys(data.records).forEach(k=>{if(k.startsWith(b.dataset.removePerson+'|'))delete data.records[k]});saveData()}})}
+function renderHouses(){let el=document.getElementById('housesList');el.innerHTML=data.houses.map(h=>`<div class="listitem"><b>${esc(h.name)}</b><button class="danger" data-remove-house="${h.id}">Eliminar</button></div>`).join('')||'<p class="help">Todavía no hay propiedades registradas.</p>';el.querySelectorAll('[data-remove-house]').forEach(b=>b.onclick=()=>{if(confirm('¿Eliminar esta propiedad?')){data.houses=data.houses.filter(h=>h.id!==b.dataset.removeHouse);saveData()}})}
+function renderReport(w,rate){
+ let dates=weekDates(w), rows=data.people.map(p=>{let hrs=dates.reduce((s,d)=>s+hours(getRecord(p.id,d)),0);return {p,hrs,pay:hrs*rate}});
+ let total=rows.reduce((s,r)=>s+r.hrs,0);
+ let html=`<p><b>Semana:</b> ${dates[0]} al ${dates[6]}</p><div class="report-row"><b>Total de horas</b><b>${total.toFixed(2)} h</b></div><div class="report-row"><b>Total por pagar</b><b>${money(total*rate)}</b></div>`;
+ rows.forEach(({p,hrs,pay})=>{html+=`<div class="report-row"><div><b>${esc(p.name)}</b><div class="sub">Exp. ${esc(p.file)}</div><div class="sub">${dates.map((d,i)=>{let r=getRecord(p.id,d);return r.status==='yes'?`${days[i]}: ${esc(r.house?houseName(r.house):'Sin propiedad')} (${hours(r).toFixed(2)} h)`:r.status==='no'?`${days[i]}: No asistió`:r.status==='rest'?`${days[i]}: Descanso`:''}).filter(Boolean).join(' · ')}</div></div><div style="text-align:right;white-space:nowrap"><b>${hrs.toFixed(2)} h</b><div>${money(pay)}</div></div></div>`});
+ document.getElementById('reportContent').innerHTML=html;
+}
+function openEditor(person,date){selected={person,date};let p=data.people.find(x=>x.id===person),r=getRecord(person,date);document.getElementById('editor').hidden=false;document.getElementById('deleteRecord').disabled=!data.records[recordKey(person,date)];document.getElementById('editorTitle').textContent=p.name+' · '+date;document.getElementById('status').value=r.status;document.getElementById('jobHouse').innerHTML='<option value="">Seleccionar propiedad</option>'+data.houses.map(h=>`<option value="${h.id}">${esc(h.name)}</option>`).join('');document.getElementById('jobHouse').value=r.house||'';setupTime('start',r.start||'07:00');setupTime('end',r.end||'17:00');updateEstimate();document.getElementById('editor').scrollIntoView({behavior:'smooth',block:'nearest'})}
+function updateEstimate(){let r={status:document.getElementById('status').value,start:readTime('start'),end:readTime('end')};let el=document.getElementById('estimate');if(r.status!=='yes'){el.textContent='Selecciona “Asistió” para registrar las horas.';return}if(!r.start||!r.end||r.end<=r.start){el.textContent='Revisa las horas: la salida debe ser después de la entrada. Por ejemplo, 7:00 AM a 5:00 PM son 10 horas.';return}el.textContent=`Horas trabajadas: ${hours(r).toFixed(2)} · Pago estimado: ${money(hours(r)*Number(document.getElementById('rate').value||data.rate))}`}
+function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+document.querySelectorAll('nav button').forEach(b=>b.addEventListener('click',()=>{document.querySelectorAll('nav button').forEach(x=>{x.classList.remove('active');x.classList.add('secondary')});b.classList.add('active');b.classList.remove('secondary');document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));document.getElementById(b.dataset.tab).classList.add('active');render()}));
+document.getElementById('week').value=mondayOf(iso(new Date()));document.getElementById('reportWeek').value=document.getElementById('week').value;document.getElementById('rate').value=data.rate||1500;
+document.getElementById('week').addEventListener('change',e=>{e.target.value=mondayOf(e.target.value);document.getElementById('reportWeek').value=e.target.value;render()});
+document.getElementById('reportWeek').addEventListener('change',e=>{e.target.value=mondayOf(e.target.value);document.getElementById('week').value=e.target.value;render()});
+document.getElementById('rate').addEventListener('input',e=>{data.rate=Number(e.target.value||0);localStorage.setItem(STORAGE_KEY,JSON.stringify(data));render()});
+document.getElementById('addPerson').onclick=()=>{let name=document.getElementById('personName').value.trim(),file=document.getElementById('personFile').value.trim();if(!name||!file)return alert('Completa el nombre y el expediente.');if(data.people.some(p=>p.file.toLowerCase()===file.toLowerCase()))return alert('Ese expediente ya existe.');data.people.push({id:crypto.randomUUID?crypto.randomUUID():String(Date.now()),name,file});document.getElementById('personName').value='';document.getElementById('personFile').value='';saveData()};
+document.getElementById('addHouse').onclick=()=>{let name=document.getElementById('houseName').value.trim();if(!name)return alert('Escribe el nombre de la propiedad.');if(data.houses.some(h=>h.name.toLowerCase()===name.toLowerCase()))return alert('Esa propiedad ya existe.');data.houses.push({id:crypto.randomUUID?crypto.randomUUID():String(Date.now()),name});document.getElementById('houseName').value='';saveData()};
+initTimeSelects();['status','startHour','startMinute','startPeriod','endHour','endMinute','endPeriod'].forEach(id=>document.getElementById(id).addEventListener('change',updateEstimate));
+document.getElementById('saveRecord').onclick=()=>{if(!selected)return;let status=document.getElementById('status').value;let r={status,house:document.getElementById('jobHouse').value,start:readTime('start'),end:readTime('end')};if(status==='yes'&&(!r.start||!r.end||r.end<=r.start))return alert('Revisa el horario. La salida debe ser posterior a la entrada. Ejemplo: 7:00 AM a 5:00 PM son 10 horas.');if(status==='yes'&&!r.house)return alert('Selecciona la propiedad.');data.records[recordKey(selected.person,selected.date)]=r;selected=null;document.getElementById('editor').hidden=true;saveData()};
+document.getElementById('deleteRecord').onclick=()=>{if(!selected)return;let key=recordKey(selected.person,selected.date);if(!data.records[key])return;if(confirm('¿Eliminar este registro de asistencia? Esta acción no se puede deshacer.')){delete data.records[key];selected=null;document.getElementById('editor').hidden=true;saveData()}};
+document.getElementById('closeEditor').onclick=()=>{selected=null;document.getElementById('editor').hidden=true};
+document.getElementById('csv').onclick=()=>{let w=mondayOf(document.getElementById('reportWeek').value),dates=weekDates(w),rate=Number(document.getElementById('rate').value||0);let lines=[['Fecha','Día','Nombre','Expediente','Asistencia','Propiedad','Entrada','Salida','Horas','Tarifa','Pago']];data.people.forEach(p=>dates.forEach((d,i)=>{let r=getRecord(p.id,d);if(r.status){lines.push([d,days[i],p.name,p.file,r.status==='yes'?'Asistió':r.status==='no'?'No asistió':'Descanso',data.houses.find(h=>h.id===r.house)?.name||'',r.status==='yes'?r.start:'',r.status==='yes'?r.end:'',hours(r).toFixed(2),rate,(hours(r)*rate).toFixed(2)])}}));let csv='\ufeff'+lines.map(row=>row.map(v=>'"'+String(v).replace(/"/g,'""')+'"').join(';')).join('\r\n');let blob=new Blob([csv],{type:'text/csv;charset=utf-8;'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='reporte-limpieza-'+w+'.csv';a.click();URL.revokeObjectURL(url)};
+document.getElementById('print').onclick=()=>window.print();
+render();
+</script>
+</body></html>
